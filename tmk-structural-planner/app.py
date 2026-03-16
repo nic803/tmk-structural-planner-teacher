@@ -144,8 +144,10 @@ def build_world_map(products,selected):
         if p==selected:
             r=34
 
+        svg+=f'<a href="?product={p}">'
         svg+=f'<circle cx="{x}" cy="{y}" r="{r}" fill="{color}" stroke="white" stroke-width="4"/>'
         svg+=f'<text x="{x}" y="{y+6}" font-size="20" text-anchor="middle" fill="white">{p}</text>'
+        svg+='</a>'
 
     svg+="</svg>"
 
@@ -156,6 +158,13 @@ if "stage" not in st.session_state:
 
 if "product" not in st.session_state:
     st.session_state.product=4
+
+qp=st.query_params
+if "product" in qp:
+    try:
+        st.session_state.product=int(qp["product"])
+    except:
+        pass
 
 with st.sidebar:
 
@@ -179,7 +188,7 @@ st.title("TMK Structural Planner")
 
 st.caption("Multiplication = entry routes • Division = exit routes")
 
-st.subheader("Product World Map")
+st.subheader("Product World Map (click hubs)")
 
 svg=build_world_map(products,st.session_state.product)
 
