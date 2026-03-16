@@ -71,42 +71,84 @@ def intro_text(p):
     r=INTRO_ROUTES[p]
     return f"{r[0]} × {r[1]} = {p}"
 
-def radial_svg(product,route_list,exit_list,color):
+def build_world_map(products,selected):
 
-    cx=350
-    cy=230
-    radius=160
+    width=1000
+    height=700
 
-    angles=[-140,-100,-60,-20,20,60,100,140]
+    stage_y={
+    "0":80,
+    "A":150,
+    "B":250,
+    "C":330,
+    "D":410,
+    "E":500,
+    "F":600,
+    "G":670
+    }
 
-    svg=f'<svg width="700" height="520">'
+    positions={}
 
-    for i,r in enumerate(route_list[:8]):
+    for stage in STAGE_ORDER:
 
-        a=math.radians(angles[i])
-        x=cx+radius*math.cos(a)
-        y=cy+radius*math.sin(a)
+        stage_products=[p for p in STAGE_META[stage]["products"] if p in products]
 
-        lx=cx+70*math.cos(a)
-        ly=cy+70*math.sin(a)
+        if not stage_products:
+            continue
 
-        svg+=f'<line x1="{x}" y1="{y}" x2="{lx}" y2="{ly}" stroke="#94a3b8" stroke-width="3"/>'
-        svg+=f'<rect x="{x-50}" y="{y-15}" width="100" height="30" rx="10" fill="#eef6ff" stroke="#bfdbfe"/>'
-        svg+=f'<text x="{x}" y="{y+5}" font-size="14" text-anchor="middle">{route_text(r)}</text>'
+        y=stage_y[stage]
 
-    svg+=f'<circle cx="{cx}" cy="{cy}" r="60" fill="{color}"/>'
-    svg+=f'<text x="{cx}" y="{cy+15}" font-size="40" text-anchor="middle" fill="white">{product}</text>'
+        count=len(stage_products)
 
-    y2=420
-    start=cx-(len(exit_list)-1)*70
+        if count==1:
+            xs=[width/2]
+        else:
+            left=200
+            right=width-50
+            step=(right-left)/(count-1)
+            xs=[left+i*step for i in range(count)]
 
-    for i,r in enumerate(exit_list):
-        x=start+i*140
-        svg+=f'<line x1="{cx}" y1="{cy+60}" x2="{x}" y2="{y2-20}" stroke="#a78bfa" stroke-width="3"/>'
-        svg+=f'<rect x="{x-50}" y="{y2-20}" width="100" height="35" rx="10" fill="#f5f3ff" stroke="#ddd6fe"/>'
-        svg+=f'<text x="{x}" y="{y2+2}" font-size="14" text-anchor="middle">{product} ÷ {r[0]}</text>'
+        for p,x in zip(stage_products,xs):
+            positions[p]=(x,y)
+
+    svg=f'<svg width="{width}" height="{height}">'
+
+    for p in positions:
+
+        if p not in INTRO_ROUTES:
+            continue
+
+        a,b=INTRO_ROUTES[p]
+
+        px,py=positions[p]
+
+        for src in [a,b]:
+
+            if src in positions:
+
+                sx,sy=positions[src]
+
+                color="#cbd5e1"
+
+                if p==selected:
+                    color="#fb923c"
+
+                svg+=f'<line x1="{sx}" y1="{sy}" x2="{px}" y2="{py}" stroke="{color}" stroke-width="3"/>'
+
+    for p,(x,y) in positions.items():
+
+        color=STAGE_META[PRODUCT_STAGE[p]]["color"]
+
+        r=28
+
+        if p==selected:
+            r=34
+
+        svg+=f'<circle cx="{x}" cy="{y}" r="{r}" fill="{color}" stroke="white" stroke-width="4"/>'
+        svg+=f'<text x="{x}" y="{y+6}" font-size="20" text-anchor="middle" fill="white">{p}</text>'
 
     svg+="</svg>"
+
     return svg
 
 if "stage" not in st.session_state:
@@ -116,32 +158,47 @@ if "product" not in st.session_state:
     st.session_state.product=4
 
 with st.sidebar:
+
     st.header("Teacher Controls")
 
     st.session_state.stage=st.radio(
-        "Unlock stage",
-        STAGE_ORDER,
-        index=STAGE_ORDER.index(st.session_state.stage),
-        format_func=lambda s: STAGE_META[s]["label"]
+    "Unlock stage",
+    STAGE_ORDER,
+    index=STAGE_ORDER.index(st.session_state.stage),
+    format_func=lambda s: STAGE_META[s]["label"]
     )
 
 stage=st.session_state.stage
+
 products=visible_products(stage)
 
 if st.session_state.product not in products:
     st.session_state.product=products[0]
 
 st.title("TMK Structural Planner")
+
 st.caption("Multiplication = entry routes • Division = exit routes")
+
+st.subheader("Product World Map")
+
+svg=build_world_map(products,st.session_state.product)
+
+st.components.v1.html(svg,height=720)
+
+st.subheader("Select Product")
 
 cols=st.columns(8)
 
 for i,p in enumerate(products):
+
     with cols[i%8]:
+
         if st.button(str(p)):
+
             st.session_state.product=p
 
 product=st.session_state.product
+
 color=STAGE_META[PRODUCT_STAGE[product]]["color"]
 
 left,right=st.columns([1,1.2])
@@ -162,20 +219,23 @@ with left:
     unsafe_allow_html=True)
 
     st.write("Introduction route")
+
     st.write(intro_text(product))
 
     st.write("Full route field")
+
     for r in routes(product):
+
         st.write(route_text(r),"=",product)
 
     st.write("Exit routes")
+
     for r in exits(product):
+
         st.write(exit_text(product,r))
 
 with right:
 
-    st.subheader("Radial Product Map")
+    st.subheader("Product Hub Map")
 
-    svg=radial_svg(product,routes(product),exits(product),color)
-
-    st.components.v1.html(svg,height=520)
+    st.write("Multiplication routes enter the product. Division routes exit the product.")
