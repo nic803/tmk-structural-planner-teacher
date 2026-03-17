@@ -533,7 +533,6 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         )
         svg.append("</g>")
 
-    # support hubs are visual only, not clickable
     for p, (x, y) in support_hubs.items():
         svg.append(f'<g>')
         svg.append(f'<title>{escape_html(f"Support hub {p}")}</title>')
@@ -601,24 +600,25 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     exit_count = len(exits_list)
     max_count = max(entry_count, exit_count)
 
+    # compact layout for small hubs like 4
     if max_count <= 3:
-        entry_outer = 148
-        exit_outer = 158
+        entry_outer = 150
+        exit_outer = 160
         label_push = 14
-        entry_range = (-145, -35)
-        exit_range = (35, 145)
-    elif max_count <= 4:
-        entry_outer = 160
-        exit_outer = 170
+        entry_angles = [-150, -90, -30][:entry_count]
+        exit_angles = [150, 90, 30][:exit_count]
+    elif max_count == 4:
+        entry_outer = 162
+        exit_outer = 172
         label_push = 15
-        entry_range = (-150, -30)
-        exit_range = (30, 150)
+        entry_angles = [-155, -110, -70, -25]
+        exit_angles = [155, 110, 70, 25]
     else:
-        entry_outer = 172
-        exit_outer = 182
+        entry_outer = 176
+        exit_outer = 186
         label_push = 16
-        entry_range = (-150, -30)
-        exit_range = (30, 150)
+        entry_angles = radial_angles(entry_count, -155, -25)
+        exit_angles = radial_angles(exit_count, 155, 25)
 
     entry_inner = hub_r + 6
     exit_inner = hub_r + 10
@@ -630,7 +630,6 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         '<text x="22" y="64" font-size="16" fill="#cbd5e1">Multiplication routes point inward · Division routes point outward</text>',
     ]
 
-    entry_angles = radial_angles(entry_count, entry_range[0], entry_range[1])
     for angle_deg, r in zip(entry_angles, routes_list):
         angle = math.radians(angle_deg)
 
@@ -655,7 +654,6 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
             f'<text x="{tx + dx:.1f}" y="{ty:.1f}" text-anchor="{anchor}" font-size="24" font-weight="700" fill="#ffffff">{r[0]}×{r[1]}</text>'
         )
 
-    exit_angles = radial_angles(exit_count, exit_range[0], exit_range[1])
     for angle_deg, r in zip(exit_angles, exits_list):
         angle = math.radians(angle_deg)
 
@@ -687,8 +685,12 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     svg.append(
         f'<text x="{cx:.1f}" y="{cy + 18:.1f}" text-anchor="middle" font-size="52" fill="white" font-weight="800">{product}</text>'
     )
-    svg.append(f'<text x="{cx:.1f}" y="{cy - hub_r - 18:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#e2e8f0">Entry routes</text>')
-    svg.append(f'<text x="{cx:.1f}" y="{cy + hub_r + 34:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#ddd6fe">Exit routes</text>')
+    svg.append(
+        f'<text x="{cx:.1f}" y="{cy - hub_r - 18:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#e2e8f0">Entry routes</text>'
+    )
+    svg.append(
+        f'<text x="{cx:.1f}" y="{cy + hub_r + 34:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#ddd6fe">Exit routes</text>'
+    )
     svg.append("</svg>")
 
     return "".join(svg)
