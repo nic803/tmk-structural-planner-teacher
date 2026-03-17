@@ -2,6 +2,7 @@ import math
 from typing import Dict, List, Set, Tuple
 
 import streamlit as st
+import streamlit.components.v2 as components
 
 st.set_page_config(page_title="TMK Structural Planner", page_icon="✳️", layout="wide")
 
@@ -33,13 +34,83 @@ INTRO_ROUTES = {
 }
 
 PRODUCT_STAGE: Dict[int, str] = {}
-for s, meta in STAGE_META.items():
-    for p in meta["products"]:
-        PRODUCT_STAGE[p] = s
+for stage_key, meta in STAGE_META.items():
+    for product in meta["products"]:
+        PRODUCT_STAGE[product] = stage_key
 
 
-def stage_rank(s: str) -> int:
-    return STAGE_ORDER.index(s)
+# =========================
+# Clickable V2 component
+# =========================
+WORLD_MAP_COMPONENT = components.component(
+    "tmk_clickable_world_map",
+    html="""
+    <div id="tmk-root"></div>
+    """,
+    css="""
+    :host {
+      display: block;
+      width: 100%;
+    }
+
+    #tmk-root {
+      width: 100%;
+    }
+
+    #tmk-root svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    #tmk-root [data-product] {
+      cursor: pointer;
+    }
+
+    #tmk-root [data-product]:hover circle {
+      filter: brightness(1.06);
+    }
+    """,
+    js="""
+    export default function(component) {
+      const { data, parentElement, setTriggerValue } = component;
+      const root = parentElement.querySelector("#tmk-root");
+      if (!root) return;
+
+      const svg = data?.svg ?? "";
+      const minHeight = data?.height ?? 1200;
+
+      root.innerHTML = svg;
+      root.style.minHeight = `${minHeight}px`;
+
+      const clickable = root.querySelectorAll("[data-product]");
+      clickable.forEach((node) => {
+        node.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const product = node.getAttribute("data-product");
+          setTriggerValue("clicked", product);
+        };
+      });
+    }
+    """,
+)
+
+
+def render_clickable_world_map(svg: str, height: int, key: str):
+    result = WORLD_MAP_COMPONENT(
+        data={"svg": svg, "height": height},
+        key=key,
+        on_clicked_change=lambda: None,
+    )
+    return getattr(result, "clicked", None)
+
+
+# =========================
+# Curriculum / model logic
+# =========================
+def stage_rank(stage: str) -> int:
+    return STAGE_ORDER.index(stage)
 
 
 def visible_products(stage: str) -> List[int]:
@@ -51,29 +122,29 @@ def visible_products(stage: str) -> List[int]:
 
 
 def routes(product: int) -> List[Route]:
-    r = []
+    out: List[Route] = []
     for a in range(1, 11):
         for b in range(1, 11):
             if a * b == product:
-                r.append((a, b))
-    return r
+                out.append((a, b))
+    return out
 
 
 def exits(product: int) -> List[Route]:
-    e = []
+    out: List[Route] = []
     for d in range(1, 11):
         if product % d == 0:
             q = product // d
             if 1 <= q <= 10:
-                e.append((d, q))
-    return e
+                out.append((d, q))
+    return out
 
 
 def distinct_factor_families(product: int) -> int:
-    fam = set()
+    families = set()
     for a, b in routes(product):
-        fam.add(tuple(sorted((a, b))))
-    return len(fam)
+        families.add(tuple(sorted((a, b))))
+    return len(families)
 
 
 def structural_score(product: int) -> int:
@@ -114,15 +185,18 @@ def write_query(product: int, stage: str) -> None:
     st.query_params.update({"product": str(product), "stage": stage})
 
 
+# =========================
+# Layout helpers
+# =========================
 def hub_radius(product: int, selected: int) -> int:
     if product == selected:
         return 48
-    rc = len(routes(product))
-    if rc >= 6:
+    route_count = len(routes(product))
+    if route_count >= 6:
         return 38
-    if rc >= 4:
+    if route_count >= 4:
         return 35
-    if rc >= 2:
+    if route_count >= 2:
         return 32
     return 29
 
@@ -155,7 +229,7 @@ def stage_y_map() -> Dict[str, int]:
 
 
 def stage_band_height(stage: str) -> int:
-    heights = {
+    return {
         "0": 86,
         "A": 96,
         "B": 120,
@@ -164,8 +238,7 @@ def stage_band_height(stage: str) -> int:
         "E": 150,
         "F": 105,
         "G": 82,
-    }
-    return heights[stage]
+    }[stage]
 
 
 def distribute(xs_left: int, xs_right: int, count: int) -> List[float]:
@@ -181,24 +254,24 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
     pos: Dict[int, Tuple[float, float]] = {}
     ymap = stage_y_map()
 
-    for s in STAGE_ORDER:
-        sp = [p for p in STAGE_META[s]["products"] if p in products]
-        if not sp:
+    for stage in STAGE_ORDER:
+        stage_products = [p for p in STAGE_META[stage]["products"] if p in products]
+        if not stage_products:
             continue
 
-        y = ymap[s]
+        y = ymap[stage]
 
-        if s == "0":
-            xs = distribute(180, 940, len(sp))
-            for p, x in zip(sp, xs):
+        if stage == "0":
+            xs = distribute(180, 940, len(stage_products))
+            for p, x in zip(stage_products, xs):
                 pos[p] = (x, y)
 
-        elif s == "A":
-            xs = distribute(130, 990, len(sp))
-            for p, x in zip(sp, xs):
+        elif stage == "A":
+            xs = distribute(130, 990, len(stage_products))
+            for p, x in zip(stage_products, xs):
                 pos[p] = (x, y)
 
-        elif s == "B":
+        elif stage == "B":
             custom = {
                 20: (250, y - 34),
                 30: (430, y - 34),
@@ -210,15 +283,15 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 90: (450, y + 52),
                 100: (670, y + 52),
             }
-            for p in sp:
+            for p in stage_products:
                 pos[p] = custom[p]
 
-        elif s == "C":
-            xs = distribute(240, 880, len(sp))
-            for p, x in zip(sp, xs):
+        elif stage == "C":
+            xs = distribute(240, 880, len(stage_products))
+            for p, x in zip(stage_products, xs):
                 pos[p] = (x, y)
 
-        elif s == "D":
+        elif stage == "D":
             custom = {
                 18: (430, y - 54),
                 27: (760, y - 54),
@@ -228,10 +301,10 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 72: (560, y + 82),
                 81: (560, y + 126),
             }
-            for p in sp:
+            for p in stage_products:
                 pos[p] = custom[p]
 
-        elif s == "E":
+        elif stage == "E":
             custom = {
                 12: (280, y - 46),
                 24: (540, y - 6),
@@ -243,18 +316,18 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 32: (610, y + 114),
                 64: (880, y + 74),
             }
-            for p in sp:
+            for p in stage_products:
                 pos[p] = custom[p]
 
-        elif s == "F":
+        elif stage == "F":
             custom = {
                 21: (390, y - 6),
                 42: (730, y + 18),
             }
-            for p in sp:
+            for p in stage_products:
                 pos[p] = custom[p]
 
-        elif s == "G":
+        elif stage == "G":
             pos[49] = (560, y)
 
     return pos
@@ -306,6 +379,9 @@ def selected_neighborhood(selected: int, visible: List[int]) -> Set[int]:
     return neighbors
 
 
+# =========================
+# SVG renderers
+# =========================
 def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     width = 1120
     height = 1380
@@ -325,6 +401,7 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         '<rect width="100%" height="100%" fill="#ffffff"/>',
     ]
 
+    # Stage bands
     for s in STAGE_ORDER:
         if stage_rank(s) > stage_rank(stage):
             continue
@@ -332,12 +409,15 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         h = stage_band_height(s)
         top = y - (h / 2)
         svg.append(
-            f'<rect x="24" y="{top:.1f}" width="{width - 48}" height="{h}" rx="20" fill="{band_color(s)}" stroke="#e2e8f0" stroke-width="1.5"/>'
+            f'<rect x="24" y="{top:.1f}" width="{width - 48}" height="{h}" rx="20" '
+            f'fill="{band_color(s)}" stroke="#e2e8f0" stroke-width="1.5"/>'
         )
         svg.append(
-            f'<text x="42" y="{top + 28:.1f}" font-size="16" font-weight="800" fill="#334155">{escape_html(STAGE_META[s]["label"])}</text>'
+            f'<text x="42" y="{top + 28:.1f}" font-size="16" font-weight="800" fill="#334155">'
+            f'{escape_html(STAGE_META[s]["label"])}</text>'
         )
 
+    # Intro edges
     for p in products:
         if p not in INTRO_ROUTES or p not in positions:
             continue
@@ -372,6 +452,7 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
                 f'<path d="{path}" stroke="{stroke}" stroke-width="{sw}" opacity="{op}" fill="none"/>'
             )
 
+    # Alternative routes for selected hub
     if selected in positions:
         px, py = positions[selected]
         intro = INTRO_ROUTES.get(selected)
@@ -383,9 +464,11 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
                     sx, sy = positions[src]
                     path = curved_path(sx, sy, px, py)
                     svg.append(
-                        f'<path d="{path}" stroke="#8b5cf6" stroke-width="3" opacity="0.56" fill="none" stroke-dasharray="5 6"/>'
+                        f'<path d="{path}" stroke="#8b5cf6" stroke-width="3" opacity="0.56" '
+                        f'fill="none" stroke-dasharray="5 6"/>'
                     )
 
+    # Hubs
     for p in products:
         if p not in positions:
             continue
@@ -420,6 +503,7 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
 
         title = f"Product {p} · {STAGE_META[PRODUCT_STAGE[p]]['label']} · {len(routes(p))} routes"
 
+        svg.append(f'<g data-product="{p}">')
         svg.append(f'<title>{escape_html(title)}</title>')
         svg.append(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}" fill="{color}" fill-opacity="{overall_opacity}" '
@@ -429,7 +513,9 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
             f'<text x="{x:.1f}" y="{y + 8:.1f}" text-anchor="middle" font-size="{label_size}" '
             f'font-weight="800" fill="white" fill-opacity="{overall_opacity}">{p}</text>'
         )
+        svg.append("</g>")
 
+    # Legend
     legend_x = 780
     legend_y = 26
     svg.append(f'<rect x="{legend_x}" y="{legend_y}" width="314" height="120" rx="14" fill="#ffffff" stroke="#e2e8f0"/>')
@@ -568,6 +654,9 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     return "".join(svg)
 
 
+# =========================
+# Small UI fragments
+# =========================
 def render_intro_panel() -> None:
     st.markdown(
         """
@@ -583,7 +672,7 @@ def render_intro_panel() -> None:
                 <b>Products are hubs.</b> Each circle is a product where multiplication routes meet.<br>
                 <b>Multiplication enters the hub.</b> Example: <code>4 × 10 → 40</code><br>
                 <b>Division exits the hub.</b> Example: <code>40 ÷ 5 → 8</code><br>
-                Use the product selector below the map to change focus.<br>
+                Click a hub on the map or use the selector below to change focus.<br>
                 Unlocking a stage adds new hubs and new connections while earlier hubs stay in place.
             </div>
         </div>
@@ -621,6 +710,9 @@ def render_selected_summary(product: int) -> None:
     )
 
 
+# =========================
+# State
+# =========================
 if "stage" not in st.session_state:
     qp_stage = read_query_stage()
     st.session_state.stage = qp_stage if qp_stage else "0"
@@ -645,7 +737,7 @@ with st.sidebar:
     st.markdown("---")
     if st.session_state.show_help:
         st.info(
-            "Choose a product below the map. The upper spokes show multiplication entering the product. "
+            "Click a hub or use the selector below. The upper spokes show multiplication entering the product. "
             "The lower spokes show division leaving it."
         )
         if st.button("Hide quick help", use_container_width=True):
@@ -673,11 +765,13 @@ if qp_product in products:
 if st.session_state.product not in products:
     st.session_state.product = products[0]
 
-write_query(st.session_state.product, stage)
-
 product = st.session_state.product
-color = STAGE_META[PRODUCT_STAGE[product]]["color"]
+write_query(product, stage)
 
+
+# =========================
+# Page
+# =========================
 st.title("TMK Structural Planner")
 st.caption("A product world of hubs, routes, stage growth, and structural compression")
 
@@ -686,41 +780,38 @@ render_selected_summary(product)
 
 st.subheader("Product World Map")
 world_svg = build_world_map_svg(products, product, stage)
-st.components.v1.html(world_svg, height=1390, scrolling=True)
+
+clicked_product = render_clickable_world_map(
+    world_svg,
+    height=1390,
+    key=f"world-map-{stage}",
+)
+
+if clicked_product is not None:
+    try:
+        clicked_int = int(clicked_product)
+        if clicked_int in products and clicked_int != st.session_state.product:
+            st.session_state.product = clicked_int
+            write_query(clicked_int, stage)
+            st.rerun()
+    except ValueError:
+        pass
 
 st.subheader("Select Product")
+chosen = st.selectbox(
+    "Choose a visible product",
+    products,
+    index=products.index(st.session_state.product),
+    label_visibility="collapsed",
+)
 
-sel_col1, sel_col2, sel_col3 = st.columns([1.4, 0.8, 0.8])
+if chosen != st.session_state.product:
+    st.session_state.product = chosen
+    write_query(chosen, stage)
+    st.rerun()
 
-with sel_col1:
-    chosen = st.selectbox(
-        "Choose a visible product",
-        products,
-        index=products.index(product),
-        label_visibility="collapsed",
-    )
-    if chosen != product:
-        st.session_state.product = chosen
-        write_query(chosen, stage)
-        st.rerun()
-
-with sel_col2:
-    current_index = products.index(product)
-    prev_disabled = current_index == 0
-    if st.button("◀ Previous", use_container_width=True, disabled=prev_disabled):
-        new_product = products[current_index - 1]
-        st.session_state.product = new_product
-        write_query(new_product, stage)
-        st.rerun()
-
-with sel_col3:
-    current_index = products.index(product)
-    next_disabled = current_index == len(products) - 1
-    if st.button("Next ▶", use_container_width=True, disabled=next_disabled):
-        new_product = products[current_index + 1]
-        st.session_state.product = new_product
-        write_query(new_product, stage)
-        st.rerun()
+product = st.session_state.product
+color = STAGE_META[PRODUCT_STAGE[product]]["color"]
 
 left, right = st.columns([0.95, 1.25])
 
@@ -769,4 +860,4 @@ with left:
 with right:
     st.subheader("Selected Product Map")
     radial = build_radial_svg(product, routes(product), exits(product), color)
-    st.components.v1.html(radial, height=610, scrolling=False)
+    st.html(radial)
