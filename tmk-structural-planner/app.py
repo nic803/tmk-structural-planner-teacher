@@ -144,26 +144,26 @@ def band_color(stage: str) -> str:
 def stage_y_map() -> Dict[str, int]:
     return {
         "0": 110,
-        "A": 225,
-        "B": 360,
-        "C": 500,
-        "D": 640,
-        "E": 800,
-        "F": 970,
-        "G": 1125,
+        "A": 230,
+        "B": 380,
+        "C": 530,
+        "D": 700,
+        "E": 910,
+        "F": 1120,
+        "G": 1290,
     }
 
 
 def stage_band_height(stage: str) -> int:
     heights = {
-        "0": 80,
-        "A": 90,
-        "B": 110,
-        "C": 90,
-        "D": 105,
-        "E": 135,
-        "F": 100,
-        "G": 80,
+        "0": 86,
+        "A": 96,
+        "B": 120,
+        "C": 96,
+        "D": 130,
+        "E": 150,
+        "F": 105,
+        "G": 82,
     }
     return heights[stage]
 
@@ -189,76 +189,68 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
         y = ymap[s]
 
         if s == "0":
-            xs = distribute(190, 930, len(sp))
+            xs = distribute(180, 940, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
         elif s == "A":
-            xs = distribute(140, 980, len(sp))
+            xs = distribute(130, 990, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
         elif s == "B":
-            layout = [
-                [20, 30, 40, 50],
-                [60, 70, 80],
-                [90, 100],
-            ]
-            stepx = 165
-            stepy = 42
-            center_x = 560
-            for r, row in enumerate(layout):
-                row_width = (len(row) - 1) * stepx
-                row_start = center_x - row_width / 2
-                for c, p in enumerate(row):
-                    if p in sp:
-                        x = row_start + c * stepx
-                        yy = y + (r - 1) * stepy
-                        pos[p] = (x, yy)
+            custom = {
+                20: (250, y - 34),
+                30: (430, y - 34),
+                40: (610, y - 34),
+                50: (790, y - 34),
+                60: (340, y + 10),
+                70: (560, y + 10),
+                80: (780, y + 10),
+                90: (450, y + 52),
+                100: (670, y + 52),
+            }
+            for p in sp:
+                pos[p] = custom[p]
 
         elif s == "C":
-            xs = distribute(250, 870, len(sp))
+            xs = distribute(240, 880, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
         elif s == "D":
-            layout = [
-                [18, 27],
-                [36],
-                [54, 63],
-                [72],
-                [81],
-            ]
-            stepx = 210
-            stepy = 38
-            center_x = 560
-            for r, row in enumerate(layout):
-                row_width = (len(row) - 1) * stepx
-                row_start = center_x - row_width / 2
-                for c, p in enumerate(row):
-                    if p in sp:
-                        x = row_start + c * stepx
-                        yy = y + (r - 2) * stepy
-                        pos[p] = (x, yy)
+            custom = {
+                18: (430, y - 54),
+                27: (760, y - 54),
+                36: (560, y - 10),
+                54: (400, y + 38),
+                63: (690, y + 38),
+                72: (560, y + 82),
+                81: (560, y + 126),
+            }
+            for p in sp:
+                pos[p] = custom[p]
 
         elif s == "E":
-            layout = [
-                [12, 24, 48],
-                [14, 28, 56],
-                [16, 32, 64],
-            ]
-            startx = 300
-            stepx = 250
-            stepy = 52
-            for r, row in enumerate(layout):
-                for c, p in enumerate(row):
-                    if p in sp:
-                        x = startx + c * stepx
-                        yy = y + (r - 1) * stepy
-                        pos[p] = (x, yy)
+            custom = {
+                12: (280, y - 46),
+                24: (540, y - 6),
+                48: (810, y - 46),
+                14: (315, y + 14),
+                28: (575, y + 54),
+                56: (845, y + 14),
+                16: (350, y + 74),
+                32: (610, y + 114),
+                64: (880, y + 74),
+            }
+            for p in sp:
+                pos[p] = custom[p]
 
         elif s == "F":
-            custom = {21: (360, y - 10), 42: (690, y + 10)}
+            custom = {
+                21: (390, y - 6),
+                42: (730, y + 18),
+            }
             for p in sp:
                 pos[p] = custom[p]
 
@@ -290,7 +282,7 @@ def escape_html(text: str) -> str:
 
 def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     width = 1120
-    height = 1210
+    height = 1380
     positions = build_positions(products)
     ymap = stage_y_map()
 
@@ -648,7 +640,7 @@ render_selected_summary(product)
 
 st.subheader("Product World Map")
 world_svg = build_world_map_svg(products, product, stage)
-st.components.v1.html(world_svg, height=1220, scrolling=True)
+st.components.v1.html(world_svg, height=1390, scrolling=True)
 
 st.subheader("Select Product")
 cols = st.columns(8)
