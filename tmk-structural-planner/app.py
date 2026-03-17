@@ -39,9 +39,6 @@ for stage_key, meta in STAGE_META.items():
         PRODUCT_STAGE[product] = stage_key
 
 
-# =========================
-# Clickable world map component
-# =========================
 WORLD_MAP_COMPONENT = components.component(
     "tmk_clickable_world_map",
     html="""
@@ -102,9 +99,6 @@ def render_clickable_world_map(svg: str, height: int, key: str):
     return getattr(result, "clicked", None)
 
 
-# =========================
-# Model helpers
-# =========================
 def stage_rank(stage: str) -> int:
     return STAGE_ORDER.index(stage)
 
@@ -181,9 +175,6 @@ def write_query(product: int, stage: str) -> None:
     st.query_params.update({"product": str(product), "stage": stage})
 
 
-# =========================
-# Layout helpers
-# =========================
 def hub_radius(product: int, selected: int) -> int:
     if product == selected:
         return 48
@@ -383,9 +374,6 @@ def selected_neighborhood(selected: int, visible: List[int]) -> Set[int]:
     return neighbors
 
 
-# =========================
-# SVG renderers
-# =========================
 def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     width = 1120
     height = 1380
@@ -545,8 +533,9 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         )
         svg.append("</g>")
 
+    # support hubs are visual only, not clickable
     for p, (x, y) in support_hubs.items():
-        svg.append(f'<g data-product="{p}">')
+        svg.append(f'<g>')
         svg.append(f'<title>{escape_html(f"Support hub {p}")}</title>')
         svg.append(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="22" fill="#ffffff" stroke="#64748b" stroke-width="3" opacity="0.95"/>'
@@ -705,9 +694,6 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     return "".join(svg)
 
 
-# =========================
-# UI fragments
-# =========================
 def render_intro_panel() -> None:
     st.markdown(
         """
@@ -761,9 +747,6 @@ def render_selected_summary(product: int) -> None:
     )
 
 
-# =========================
-# State
-# =========================
 if "stage" not in st.session_state:
     qp_stage = read_query_stage()
     st.session_state.stage = qp_stage if qp_stage else "0"
@@ -819,10 +802,6 @@ if st.session_state.product not in products:
 product = st.session_state.product
 write_query(product, stage)
 
-
-# =========================
-# Page
-# =========================
 st.title("TMK Structural Planner")
 st.caption("A product world of hubs, routes, stage growth, and structural compression")
 
@@ -841,7 +820,7 @@ clicked_product = render_clickable_world_map(
 if clicked_product is not None:
     try:
         clicked_int = int(clicked_product)
-        if clicked_int != st.session_state.product:
+        if clicked_int in products and clicked_int != st.session_state.product:
             st.session_state.product = clicked_int
             write_query(clicked_int, stage)
             st.rerun()
@@ -862,7 +841,7 @@ if chosen != st.session_state.product:
     st.rerun()
 
 product = st.session_state.product
-color = STAGE_META.get(PRODUCT_STAGE.get(product, "0"), STAGE_META["0"])["color"]
+color = STAGE_META[PRODUCT_STAGE[product]]["color"]
 
 left, right = st.columns([0.95, 1.25])
 
@@ -871,8 +850,7 @@ with left:
 
     score = structural_score(product)
     family_count = distinct_factor_families(product)
-
-    stage_label = STAGE_META[PRODUCT_STAGE[product]]["label"] if product in PRODUCT_STAGE else "Support hub"
+    stage_label = STAGE_META[PRODUCT_STAGE[product]]["label"]
 
     st.markdown(
         f"""
