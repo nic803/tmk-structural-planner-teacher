@@ -19,7 +19,7 @@ STAGE_META = {
     "G":{"label":"Stage G · Closure","products":[49],"color":"#d4a017"},
 }
 
-INTRO_ROUTES={
+INTRO_ROUTES = {
 1:(1,1),2:(1,2),3:(1,3),4:(1,4),5:(1,5),
 6:(1,6),7:(1,7),8:(1,8),9:(1,9),10:(1,10),
 12:(2,6),14:(2,7),15:(3,5),16:(2,8),18:(2,9),
@@ -42,11 +42,11 @@ def stage_rank(s):
 
 
 def visible_products(stage):
-    v=set()
+    visible=set()
     for s in STAGE_ORDER:
         if stage_rank(s)<=stage_rank(stage):
-            v.update(STAGE_META[s]["products"])
-    return sorted(v)
+            visible.update(STAGE_META[s]["products"])
+    return sorted(visible)
 
 
 def routes(product):
@@ -68,6 +68,42 @@ def exits(product):
     return e
 
 
+def read_query_product():
+    try:
+        raw=st.query_params.get("product",None)
+        if raw is None:
+            return None
+        if isinstance(raw,list):
+            raw=raw[0]
+        return int(raw)
+    except:
+        return None
+
+
+def read_query_stage():
+    try:
+        raw=st.query_params.get("stage",None)
+        if raw is None:
+            return None
+        if isinstance(raw,list):
+            raw=raw[0]
+        if raw in STAGE_ORDER:
+            return raw
+        return None
+    except:
+        return None
+
+
+def write_query(product,stage):
+    try:
+        st.query_params.update({
+            "product":str(product),
+            "stage":stage
+        })
+    except:
+        pass
+
+
 def hub_radius(p,selected):
     rc=len(routes(p))
     if p==selected:
@@ -84,12 +120,12 @@ def curved_path(sx,sy,px,py):
     my=(sy+py)/2
     dx=px-sx
     dy=py-sy
-    cx=mx-dy*0.2
-    cy=my+dx*0.1
+    cx=mx-dy*0.22
+    cy=my+dx*0.12
     return f"M {sx} {sy} Q {cx} {cy} {px} {py}"
 
 
-def build_world_map_svg(products,selected):
+def build_world_map_svg(products,selected,stage):
 
     width=1120
     height=780
@@ -101,18 +137,15 @@ def build_world_map_svg(products,selected):
 
     pos={}
 
-    for stage in STAGE_ORDER:
+    for s in STAGE_ORDER:
 
-        sp=[p for p in STAGE_META[stage]["products"] if p in products]
+        sp=[p for p in STAGE_META[s]["products"] if p in products]
         if not sp:
             continue
 
-        y=stage_y[stage]
+        y=stage_y[s]
 
-        # special layout for Stage E
-        if stage=="E" and len(sp)==9:
-
-            cols=[0,1,2]
+        if s=="E" and len(sp)==9:
 
             layout=[
             [12,24,48],
@@ -121,14 +154,14 @@ def build_world_map_svg(products,selected):
             ]
 
             startx=420
-            step=140
+            stepx=140
             stepy=38
 
-            for row_i,row in enumerate(layout):
-                for col_i,p in enumerate(row):
+            for r,row in enumerate(layout):
+                for c,p in enumerate(row):
                     if p in sp:
-                        x=startx+col_i*step
-                        yy=y+(row_i-1)*stepy
+                        x=startx+c*stepx
+                        yy=y+(r-1)*stepy
                         pos[p]=(x,yy)
 
         else:
@@ -148,7 +181,7 @@ def build_world_map_svg(products,selected):
 
     svg=[
     f'<svg viewBox="0 0 {width} {height}" width="100%" height="780" xmlns="http://www.w3.org/2000/svg">',
-    '<rect x="0" y="0" width="100%" height="100%" fill="white"/>'
+    '<rect width="100%" height="100%" fill="white"/>'
     ]
 
     for p in products:
@@ -156,10 +189,10 @@ def build_world_map_svg(products,selected):
         if p not in INTRO_ROUTES:
             continue
 
-        a,b=INTRO_ROUTES[p]
-
         if p not in pos:
             continue
+
+        a,b=INTRO_ROUTES[p]
 
         px,py=pos[p]
 
@@ -169,20 +202,33 @@ def build_world_map_svg(products,selected):
 
                 sx,sy=pos[src]
 
-                d=curved_path(sx,sy,px,py)
+                path=curved_path(sx,sy,px,py)
 
-                svg.append(f'<path d="{d}" stroke="#94a3b8" stroke-width="2" fill="none" opacity="0.35"/>')
+                if p==selected:
+                    style='stroke="#fb923c" stroke-width="5" opacity="0.9"'
+                else:
+                    style='stroke="#94a3b8" stroke-width="2" opacity="0.35"'
+
+                svg.append(
+                f'<path d="{path}" {style} fill="none"/>'
+                )
 
     for p in products:
+
+        if p not in pos:
+            continue
 
         x,y=pos[p]
         r=hub_radius(p,selected)
         color=STAGE_META[PRODUCT_STAGE[p]]["color"]
 
+        stroke="#fb923c" if p==selected else "white"
+        sw=6 if p==selected else 4
+
         svg.append(f'''
-        <a href="?product={p}">
-        <circle cx="{x}" cy="{y}" r="{r}" fill="{color}" stroke="white" stroke-width="4"/>
-        <text x="{x}" y="{y+6}" text-anchor="middle" font-size="18" fill="white" font-weight="bold">{p}</text>
+        <a href="?product={p}&stage={stage}" target="_self">
+        <circle cx="{x}" cy="{y}" r="{r}" fill="{color}" stroke="{stroke}" stroke-width="{sw}"/>
+        <text x="{x}" y="{y+7}" text-anchor="middle" font-size="20" font-weight="800" fill="white">{p}</text>
         </a>
         ''')
 
@@ -192,28 +238,53 @@ def build_world_map_svg(products,selected):
 
 
 if "stage" not in st.session_state:
-    st.session_state.stage="0"
+    qp_stage=read_query_stage()
+    st.session_state.stage=qp_stage if qp_stage else "0"
 
 if "product" not in st.session_state:
     st.session_state.product=4
 
+
 with st.sidebar:
     st.header("Teacher Controls")
-    st.session_state.stage=st.radio(
+
+    stage_choice=st.radio(
         "Unlock stage",
         STAGE_ORDER,
         index=STAGE_ORDER.index(st.session_state.stage),
         format_func=lambda s:STAGE_META[s]["label"]
     )
 
+    st.session_state.stage=stage_choice
+
+
 stage=st.session_state.stage
 products=visible_products(stage)
+
+qp_product=read_query_product()
+if qp_product in products:
+    st.session_state.product=qp_product
+
+if st.session_state.product not in products:
+    st.session_state.product=products[0]
+
+write_query(st.session_state.product,stage)
 
 st.title("TMK Structural Planner")
 st.caption("Multiplication = entry routes • Division = exit routes")
 
 st.subheader("Product World Map")
 
-svg=build_world_map_svg(products,st.session_state.product)
+svg=build_world_map_svg(products,st.session_state.product,stage)
 
 st.components.v1.html(svg,height=780,scrolling=False)
+
+st.subheader("Select Product")
+
+cols=st.columns(8)
+
+for i,p in enumerate(products):
+    with cols[i%8]:
+        if st.button(str(p),key=f"p_{p}"):
+            st.session_state.product=p
+            write_query(p,stage)
