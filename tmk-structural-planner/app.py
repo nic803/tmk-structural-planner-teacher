@@ -273,11 +273,11 @@ def build_radial_svg(product: int, product_routes: List[Route], product_exits: L
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="540" xmlns="http://www.w3.org/2000/svg">',
         """
         <style>
-        .entry-label { font: 700 15px Arial, sans-serif; fill: #1f2937; }
-        .exit-label { font: 700 14px Arial, sans-serif; fill: #3f3f46; }
+        .entry-label { font: 700 15px Arial, sans-serif; fill: #111827; }
+        .exit-label { font: 700 14px Arial, sans-serif; fill: #111827; }
         .hub-text { font: 800 42px Georgia, serif; fill: white; }
-        .entry-box { fill: #eef6ff; stroke: #bfdbfe; stroke-width: 2; rx: 12; ry: 12; }
-        .exit-box { fill: #f5f3ff; stroke: #ddd6fe; stroke-width: 2; rx: 12; ry: 12; }
+        .entry-box { fill: #dbeafe; stroke: #60a5fa; stroke-width: 2; rx: 12; ry: 12; }
+        .exit-box { fill: #ede9fe; stroke: #8b5cf6; stroke-width: 2; rx: 12; ry: 12; }
         .line-entry { stroke: #94a3b8; stroke-width: 3; }
         .line-exit { stroke: #a78bfa; stroke-width: 3; }
         </style>
@@ -318,12 +318,12 @@ st.markdown(
     """
     <style>
     .card {
-        border: 1px solid #e5e7eb;
+        border: 1px solid rgba(148, 163, 184, 0.28);
         border-radius: 18px;
         padding: 1rem;
         margin-bottom: 1rem;
-        background: white;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
     }
     .hub {
         width: 148px;
@@ -336,35 +336,48 @@ st.markdown(
         margin: 0 auto;
         font-size: 3rem;
         font-weight: 800;
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
         border: 6px solid white;
     }
     .hub-label {
         text-align: center;
         margin-top: 0.7rem;
-        color: #5b6470;
+        color: rgba(226, 232, 240, 0.92);
         font-weight: 700;
     }
     .pill {
         display: inline-block;
-        padding: 0.42rem 0.72rem;
+        padding: 0.46rem 0.8rem;
         border-radius: 999px;
-        border: 1px solid #dbe3ef;
-        margin: 0.15rem 0.2rem 0.15rem 0;
-        background: #f8fafc;
+        border: 1px solid transparent;
+        margin: 0.15rem 0.28rem 0.15rem 0;
         font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.2;
     }
-    .intro { background: #ecfeff; font-weight: 700; }
-    .entry { background: #eef6ff; }
-    .exit { background: #f5f3ff; }
+    .intro {
+        background: #ccfbf1;
+        color: #134e4a;
+        border-color: #5eead4;
+    }
+    .entry {
+        background: #dbeafe;
+        color: #1e3a8a;
+        border-color: #93c5fd;
+    }
+    .exit {
+        background: #ede9fe;
+        color: #5b21b6;
+        border-color: #c4b5fd;
+    }
 
     .selector-stage {
         margin: 0 0 1rem 0;
         padding: 0.95rem 1rem 1rem 1rem;
-        border: 1px solid #e5e7eb;
+        border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 16px;
-        background: #ffffff;
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        background: rgba(255, 255, 255, 0.03);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
     }
     .selector-stage-header {
         display: flex;
@@ -372,7 +385,7 @@ st.markdown(
         gap: 0.65rem;
         margin-bottom: 0.85rem;
         font-weight: 800;
-        color: #1f2937;
+        color: inherit;
         font-size: 1rem;
     }
     .selector-stage-dot {
