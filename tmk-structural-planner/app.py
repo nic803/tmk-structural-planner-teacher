@@ -40,7 +40,7 @@ for stage_key, meta in STAGE_META.items():
 
 
 # =========================
-# Clickable V2 component
+# Clickable world map component
 # =========================
 WORLD_MAP_COMPONENT = components.component(
     "tmk_clickable_world_map",
@@ -65,10 +65,6 @@ WORLD_MAP_COMPONENT = components.component(
 
     #tmk-root [data-product] {
       cursor: pointer;
-    }
-
-    #tmk-root [data-product]:hover circle {
-      filter: brightness(1.06);
     }
     """,
     js="""
@@ -107,7 +103,7 @@ def render_clickable_world_map(svg: str, height: int, key: str):
 
 
 # =========================
-# Curriculum / model logic
+# Model helpers
 # =========================
 def stage_rank(stage: str) -> int:
     return STAGE_ORDER.index(stage)
@@ -202,7 +198,7 @@ def hub_radius(product: int, selected: int) -> int:
 
 
 def band_color(stage: str) -> str:
-    colors = {
+    return {
         "0": "#f8fafc",
         "A": "#f8fafc",
         "B": "#eff6ff",
@@ -211,8 +207,7 @@ def band_color(stage: str) -> str:
         "E": "#f0fdfa",
         "F": "#f5f3ff",
         "G": "#fffbeb",
-    }
-    return colors[stage]
+    }[stage]
 
 
 def stage_y_map() -> Dict[str, int]:
@@ -353,6 +348,15 @@ def escape_html(text: str) -> str:
     )
 
 
+def radial_angles(count: int, start_deg: float, end_deg: float) -> List[float]:
+    if count <= 0:
+        return []
+    if count == 1:
+        return [(start_deg + end_deg) / 2]
+    step = (end_deg - start_deg) / (count - 1)
+    return [start_deg + i * step for i in range(count)]
+
+
 def selected_neighborhood(selected: int, visible: List[int]) -> Set[int]:
     visible_set = set(visible)
     neighbors = {selected}
@@ -385,9 +389,39 @@ def selected_neighborhood(selected: int, visible: List[int]) -> Set[int]:
 def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     width = 1120
     height = 1380
+
     positions = build_positions(products)
     ymap = stage_y_map()
     spotlight = selected_neighborhood(selected, products)
+
+    support_hubs: Dict[int, Tuple[float, float]] = {}
+    selected_routes = routes(selected)
+    selected_exits = exits(selected)
+
+    candidate_nodes = set()
+    for a, b in selected_routes:
+        candidate_nodes.add(a)
+        candidate_nodes.add(b)
+    for d, q in selected_exits:
+        candidate_nodes.add(d)
+        candidate_nodes.add(q)
+
+    candidate_nodes.discard(selected)
+
+    if selected in positions:
+        sx, sy = positions[selected]
+        missing = [n for n in sorted(candidate_nodes) if n not in positions]
+        if missing:
+            angles = radial_angles(len(missing), -160, 160)
+            support_radius = 155
+            for n, angle_deg in zip(missing, angles):
+                angle = math.radians(angle_deg)
+                support_hubs[n] = (
+                    sx + support_radius * math.cos(angle),
+                    sy + support_radius * math.sin(angle),
+                )
+
+    all_positions = {**positions, **support_hubs}
 
     svg = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">',
@@ -401,7 +435,6 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         '<rect width="100%" height="100%" fill="#ffffff"/>',
     ]
 
-    # Stage bands
     for s in STAGE_ORDER:
         if stage_rank(s) > stage_rank(stage):
             continue
@@ -417,19 +450,18 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
             f'{escape_html(STAGE_META[s]["label"])}</text>'
         )
 
-    # Intro edges
     for p in products:
-        if p not in INTRO_ROUTES or p not in positions:
+        if p not in INTRO_ROUTES or p not in all_positions:
             continue
 
         a, b = INTRO_ROUTES[p]
-        px, py = positions[p]
+        px, py = all_positions[p]
 
         for src in (a, b):
-            if src not in positions:
+            if src not in all_positions:
                 continue
 
-            sx, sy = positions[src]
+            sx, sy = all_positions[src]
             path = curved_path(sx, sy, px, py)
 
             selected_touch = (p == selected) or (src == selected)
@@ -452,28 +484,26 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
                 f'<path d="{path}" stroke="{stroke}" stroke-width="{sw}" opacity="{op}" fill="none"/>'
             )
 
-    # Alternative routes for selected hub
-    if selected in positions:
-        px, py = positions[selected]
+    if selected in all_positions:
+        px, py = all_positions[selected]
         intro = INTRO_ROUTES.get(selected)
         for a, b in routes(selected):
             if (a, b) == intro:
                 continue
             for src in (a, b):
-                if src in positions and src != selected:
-                    sx, sy = positions[src]
+                if src in all_positions and src != selected:
+                    sx, sy = all_positions[src]
                     path = curved_path(sx, sy, px, py)
                     svg.append(
                         f'<path d="{path}" stroke="#8b5cf6" stroke-width="3" opacity="0.56" '
                         f'fill="none" stroke-dasharray="5 6"/>'
                     )
 
-    # Hubs
     for p in products:
-        if p not in positions:
+        if p not in all_positions:
             continue
 
-        x, y = positions[p]
+        x, y = all_positions[p]
         r = hub_radius(p, selected)
         color = STAGE_META[PRODUCT_STAGE[p]]["color"]
         selected_state = p == selected
@@ -515,10 +545,20 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         )
         svg.append("</g>")
 
-    # Legend
-    legend_x = 780
+    for p, (x, y) in support_hubs.items():
+        svg.append(f'<g data-product="{p}">')
+        svg.append(f'<title>{escape_html(f"Support hub {p}")}</title>')
+        svg.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="22" fill="#ffffff" stroke="#64748b" stroke-width="3" opacity="0.95"/>'
+        )
+        svg.append(
+            f'<text x="{x:.1f}" y="{y + 6:.1f}" text-anchor="middle" font-size="16" font-weight="800" fill="#334155">{p}</text>'
+        )
+        svg.append("</g>")
+
+    legend_x = 760
     legend_y = 26
-    svg.append(f'<rect x="{legend_x}" y="{legend_y}" width="314" height="120" rx="14" fill="#ffffff" stroke="#e2e8f0"/>')
+    svg.append(f'<rect x="{legend_x}" y="{legend_y}" width="334" height="140" rx="14" fill="#ffffff" stroke="#e2e8f0"/>')
     svg.append(f'<text x="{legend_x + 14}" y="{legend_y + 24}" font-size="14" font-weight="800" fill="#334155">How to read the world map</text>')
     svg.append(f'<line x1="{legend_x + 16}" y1="{legend_y + 46}" x2="{legend_x + 54}" y2="{legend_y + 46}" stroke="#94a3b8" stroke-width="2.2" opacity="0.55"/>')
     svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 50}" font-size="13" fill="#475569">gray line = introduction route</text>')
@@ -527,10 +567,10 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 90}" r="11" fill="#7c3aed" opacity="0.18"/>')
     svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 90}" r="8" fill="#7c3aed"/>')
     svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 94}" font-size="13" fill="#475569">halo = compression hub</text>')
-    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 112}" r="8" fill="#1d4ed8" fill-opacity="0.35"/>')
-    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 116}" font-size="13" fill="#475569">dim hubs = outside current spotlight</text>')
-
+    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 114}" r="10" fill="#ffffff" stroke="#64748b" stroke-width="2"/>')
+    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 118}" font-size="13" fill="#475569">outlined hub = route support hub</text>')
     svg.append("</svg>")
+
     return "".join(svg)
 
 
@@ -551,15 +591,6 @@ def text_offset_for_anchor(anchor: str) -> int:
     return 0
 
 
-def radial_angles(count: int, start_deg: float, end_deg: float) -> List[float]:
-    if count <= 0:
-        return []
-    if count == 1:
-        return [(start_deg + end_deg) / 2]
-    step = (end_deg - start_deg) / (count - 1)
-    return [start_deg + i * step for i in range(count)]
-
-
 def arrowhead_polygon(x: float, y: float, angle_deg: float, size: float = 11) -> str:
     left = math.radians(angle_deg + 145)
     right = math.radians(angle_deg - 145)
@@ -577,11 +608,31 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     cy = 305
     hub_r = 92
 
+    entry_count = len(routes_list)
+    exit_count = len(exits_list)
+    max_count = max(entry_count, exit_count)
+
+    if max_count <= 3:
+        entry_outer = 148
+        exit_outer = 158
+        label_push = 14
+        entry_range = (-145, -35)
+        exit_range = (35, 145)
+    elif max_count <= 4:
+        entry_outer = 160
+        exit_outer = 170
+        label_push = 15
+        entry_range = (-150, -30)
+        exit_range = (30, 150)
+    else:
+        entry_outer = 172
+        exit_outer = 182
+        label_push = 16
+        entry_range = (-150, -30)
+        exit_range = (30, 150)
+
     entry_inner = hub_r + 6
-    entry_outer = 172
     exit_inner = hub_r + 10
-    exit_outer = 182
-    label_push = 16
 
     svg = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">',
@@ -590,7 +641,7 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         '<text x="22" y="64" font-size="16" fill="#cbd5e1">Multiplication routes point inward · Division routes point outward</text>',
     ]
 
-    entry_angles = radial_angles(len(routes_list), -150, -30)
+    entry_angles = radial_angles(entry_count, entry_range[0], entry_range[1])
     for angle_deg, r in zip(entry_angles, routes_list):
         angle = math.radians(angle_deg)
 
@@ -615,7 +666,7 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
             f'<text x="{tx + dx:.1f}" y="{ty:.1f}" text-anchor="{anchor}" font-size="24" font-weight="700" fill="#ffffff">{r[0]}×{r[1]}</text>'
         )
 
-    exit_angles = radial_angles(len(exits_list), 30, 150)
+    exit_angles = radial_angles(exit_count, exit_range[0], exit_range[1])
     for angle_deg, r in zip(exit_angles, exits_list):
         angle = math.radians(angle_deg)
 
@@ -649,13 +700,13 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
     )
     svg.append(f'<text x="{cx:.1f}" y="{cy - hub_r - 18:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#e2e8f0">Entry routes</text>')
     svg.append(f'<text x="{cx:.1f}" y="{cy + hub_r + 34:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#ddd6fe">Exit routes</text>')
-
     svg.append("</svg>")
+
     return "".join(svg)
 
 
 # =========================
-# Small UI fragments
+# UI fragments
 # =========================
 def render_intro_panel() -> None:
     st.markdown(
@@ -790,7 +841,7 @@ clicked_product = render_clickable_world_map(
 if clicked_product is not None:
     try:
         clicked_int = int(clicked_product)
-        if clicked_int in products and clicked_int != st.session_state.product:
+        if clicked_int != st.session_state.product:
             st.session_state.product = clicked_int
             write_query(clicked_int, stage)
             st.rerun()
@@ -801,7 +852,7 @@ st.subheader("Select Product")
 chosen = st.selectbox(
     "Choose a visible product",
     products,
-    index=products.index(st.session_state.product),
+    index=products.index(st.session_state.product) if st.session_state.product in products else 0,
     label_visibility="collapsed",
 )
 
@@ -811,7 +862,7 @@ if chosen != st.session_state.product:
     st.rerun()
 
 product = st.session_state.product
-color = STAGE_META[PRODUCT_STAGE[product]]["color"]
+color = STAGE_META.get(PRODUCT_STAGE.get(product, "0"), STAGE_META["0"])["color"]
 
 left, right = st.columns([0.95, 1.25])
 
@@ -820,6 +871,8 @@ with left:
 
     score = structural_score(product)
     family_count = distinct_factor_families(product)
+
+    stage_label = STAGE_META[PRODUCT_STAGE[product]]["label"] if product in PRODUCT_STAGE else "Support hub"
 
     st.markdown(
         f"""
@@ -833,7 +886,7 @@ with left:
             <div style="font-size:14px;color:#64748b;font-weight:700;">Selected hub</div>
             <div style="font-size:44px;line-height:1.05;font-weight:800;color:{color};">{product}</div>
             <div style="margin-top:8px;color:#334155;font-size:14px;">
-                {STAGE_META[PRODUCT_STAGE[product]]["label"]}<br>
+                {stage_label}<br>
                 {len(routes(product))} entry routes · {len(exits(product))} exit routes · {family_count} factor families · score {score}
             </div>
         </div>
