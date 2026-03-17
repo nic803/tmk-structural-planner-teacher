@@ -116,15 +116,15 @@ def write_query(product: int, stage: str) -> None:
 
 def hub_radius(product: int, selected: int) -> int:
     if product == selected:
-        return 46
+        return 48
     rc = len(routes(product))
     if rc >= 6:
-        return 36
+        return 38
     if rc >= 4:
-        return 33
+        return 35
     if rc >= 2:
-        return 30
-    return 27
+        return 32
+    return 29
 
 
 def band_color(stage: str) -> str:
@@ -143,27 +143,27 @@ def band_color(stage: str) -> str:
 
 def stage_y_map() -> Dict[str, int]:
     return {
-        "0": 95,
-        "A": 190,
-        "B": 300,
-        "C": 405,
-        "D": 510,
-        "E": 625,
-        "F": 740,
-        "G": 850,
+        "0": 110,
+        "A": 225,
+        "B": 360,
+        "C": 500,
+        "D": 640,
+        "E": 800,
+        "F": 970,
+        "G": 1125,
     }
 
 
 def stage_band_height(stage: str) -> int:
     heights = {
-        "0": 72,
-        "A": 82,
-        "B": 92,
-        "C": 78,
-        "D": 88,
-        "E": 118,
-        "F": 86,
-        "G": 72,
+        "0": 80,
+        "A": 90,
+        "B": 110,
+        "C": 90,
+        "D": 105,
+        "E": 135,
+        "F": 100,
+        "G": 80,
     }
     return heights[stage]
 
@@ -189,12 +189,12 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
         y = ymap[s]
 
         if s == "0":
-            xs = distribute(220, 940, len(sp))
+            xs = distribute(190, 930, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
         elif s == "A":
-            xs = distribute(170, 990, len(sp))
+            xs = distribute(140, 980, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
@@ -204,12 +204,12 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 [60, 70, 80],
                 [90, 100],
             ]
-            startx = 290
-            stepx = 155
-            stepy = 34
+            stepx = 165
+            stepy = 42
+            center_x = 560
             for r, row in enumerate(layout):
                 row_width = (len(row) - 1) * stepx
-                row_start = startx + (3 * stepx - row_width) / 2
+                row_start = center_x - row_width / 2
                 for c, p in enumerate(row):
                     if p in sp:
                         x = row_start + c * stepx
@@ -217,7 +217,7 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                         pos[p] = (x, yy)
 
         elif s == "C":
-            xs = distribute(300, 860, len(sp))
+            xs = distribute(250, 870, len(sp))
             for p, x in zip(sp, xs):
                 pos[p] = (x, y)
 
@@ -229,8 +229,8 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 [72],
                 [81],
             ]
-            stepx = 180
-            stepy = 28
+            stepx = 210
+            stepy = 38
             center_x = 560
             for r, row in enumerate(layout):
                 row_width = (len(row) - 1) * stepx
@@ -247,9 +247,9 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                 [14, 28, 56],
                 [16, 32, 64],
             ]
-            startx = 420
-            stepx = 150
-            stepy = 42
+            startx = 300
+            stepx = 250
+            stepy = 52
             for r, row in enumerate(layout):
                 for c, p in enumerate(row):
                     if p in sp:
@@ -258,7 +258,7 @@ def build_positions(products: List[int]) -> Dict[int, Tuple[float, float]]:
                         pos[p] = (x, yy)
 
         elif s == "F":
-            custom = {21: (470, y - 18), 42: (650, y + 18)}
+            custom = {21: (360, y - 10), 42: (690, y + 10)}
             for p in sp:
                 pos[p] = custom[p]
 
@@ -273,8 +273,8 @@ def curved_path(sx: float, sy: float, px: float, py: float) -> str:
     my = (sy + py) / 2
     dx = px - sx
     dy = py - sy
-    cx = mx - dy * 0.16
-    cy = my + dx * 0.08
+    cx = mx - dy * 0.14
+    cy = my + dx * 0.07
     return f"M {sx:.1f} {sy:.1f} Q {cx:.1f} {cy:.1f} {px:.1f} {py:.1f}"
 
 
@@ -290,7 +290,7 @@ def escape_html(text: str) -> str:
 
 def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
     width = 1120
-    height = 910
+    height = 1210
     positions = build_positions(products)
     ymap = stage_y_map()
 
@@ -299,7 +299,7 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         "<defs>",
         """
         <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.12"/>
+          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.14"/>
         </filter>
         """,
         "</defs>",
@@ -313,10 +313,10 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         h = stage_band_height(s)
         top = y - (h / 2)
         svg.append(
-            f'<rect x="24" y="{top:.1f}" width="{width - 48}" height="{h}" rx="18" fill="{band_color(s)}" stroke="#e2e8f0" stroke-width="1.5"/>'
+            f'<rect x="24" y="{top:.1f}" width="{width - 48}" height="{h}" rx="20" fill="{band_color(s)}" stroke="#e2e8f0" stroke-width="1.5"/>'
         )
         svg.append(
-            f'<text x="42" y="{top + 24:.1f}" font-size="14" font-weight="700" fill="#334155">{escape_html(STAGE_META[s]["label"])}</text>'
+            f'<text x="42" y="{top + 28:.1f}" font-size="16" font-weight="800" fill="#334155">{escape_html(STAGE_META[s]["label"])}</text>'
         )
 
     for p in products:
@@ -335,12 +335,12 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
             selected_touch = (p == selected) or (src == selected)
             if selected_touch:
                 stroke = "#fb923c"
-                sw = 3.8
-                op = 0.92
+                sw = 4.2
+                op = 0.95
             else:
                 stroke = "#94a3b8"
-                sw = 2
-                op = 0.28
+                sw = 2.2
+                op = 0.22
 
             svg.append(
                 f'<path d="{path}" stroke="{stroke}" stroke-width="{sw}" opacity="{op}" fill="none"/>'
@@ -357,7 +357,7 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
                     sx, sy = positions[src]
                     path = curved_path(sx, sy, px, py)
                     svg.append(
-                        f'<path d="{path}" stroke="#8b5cf6" stroke-width="2.6" opacity="0.55" fill="none" stroke-dasharray="5 5"/>'
+                        f'<path d="{path}" stroke="#8b5cf6" stroke-width="2.8" opacity="0.48" fill="none" stroke-dasharray="5 6"/>'
                     )
 
     for p in products:
@@ -371,16 +371,16 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
         compression = is_compression_hub(p)
 
         if compression:
-            halo_r = r + 9
+            halo_r = r + 10
             halo_fill = "#fde68a" if PRODUCT_STAGE[p] == "G" else "#c4b5fd"
-            halo_opacity = 0.18 if not selected_state else 0.30
+            halo_opacity = 0.16 if not selected_state else 0.28
             svg.append(
                 f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{halo_r}" fill="{halo_fill}" opacity="{halo_opacity}"/>'
             )
 
         stroke = "#fb923c" if selected_state else "#ffffff"
         sw = 6 if selected_state else 4
-        label_size = 22 if r >= 33 else 19
+        label_size = 24 if r >= 35 else 21
 
         title = f"Product {p} · {STAGE_META[PRODUCT_STAGE[p]]['label']} · {len(routes(p))} routes"
         svg.append(f'<a href="?product={p}&stage={stage}">')
@@ -389,21 +389,21 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}" fill="{color}" stroke="{stroke}" stroke-width="{sw}" filter="url(#softShadow)"/>'
         )
         svg.append(
-            f'<text x="{x:.1f}" y="{y + 7:.1f}" text-anchor="middle" font-size="{label_size}" font-weight="800" fill="white">{p}</text>'
+            f'<text x="{x:.1f}" y="{y + 8:.1f}" text-anchor="middle" font-size="{label_size}" font-weight="800" fill="white">{p}</text>'
         )
         svg.append("</a>")
 
-    legend_x = 806
-    legend_y = 24
-    svg.append(f'<rect x="{legend_x}" y="{legend_y}" width="288" height="92" rx="14" fill="#ffffff" stroke="#e2e8f0"/>')
-    svg.append(f'<text x="{legend_x + 14}" y="{legend_y + 22}" font-size="13" font-weight="700" fill="#334155">How to read the world map</text>')
-    svg.append(f'<line x1="{legend_x + 16}" y1="{legend_y + 42}" x2="{legend_x + 54}" y2="{legend_y + 42}" stroke="#94a3b8" stroke-width="2" opacity="0.55"/>')
-    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 46}" font-size="12" fill="#475569">gray line = introduction route</text>')
-    svg.append(f'<line x1="{legend_x + 16}" y1="{legend_y + 62}" x2="{legend_x + 54}" y2="{legend_y + 62}" stroke="#8b5cf6" stroke-width="2.2" opacity="0.75" stroke-dasharray="5 5"/>')
-    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 66}" font-size="12" fill="#475569">purple dashed = extra routes for selected hub</text>')
-    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 82}" r="10" fill="#7c3aed" opacity="0.18"/>')
-    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 82}" r="7" fill="#7c3aed"/>')
-    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 86}" font-size="12" fill="#475569">halo = compression hub</text>')
+    legend_x = 792
+    legend_y = 26
+    svg.append(f'<rect x="{legend_x}" y="{legend_y}" width="302" height="98" rx="14" fill="#ffffff" stroke="#e2e8f0"/>')
+    svg.append(f'<text x="{legend_x + 14}" y="{legend_y + 24}" font-size="14" font-weight="800" fill="#334155">How to read the world map</text>')
+    svg.append(f'<line x1="{legend_x + 16}" y1="{legend_y + 46}" x2="{legend_x + 54}" y2="{legend_y + 46}" stroke="#94a3b8" stroke-width="2.2" opacity="0.55"/>')
+    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 50}" font-size="13" fill="#475569">gray line = introduction route</text>')
+    svg.append(f'<line x1="{legend_x + 16}" y1="{legend_y + 68}" x2="{legend_x + 54}" y2="{legend_y + 68}" stroke="#8b5cf6" stroke-width="2.4" opacity="0.75" stroke-dasharray="5 6"/>')
+    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 72}" font-size="13" fill="#475569">purple dashed = extra routes for selected hub</text>')
+    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 88}" r="11" fill="#7c3aed" opacity="0.18"/>')
+    svg.append(f'<circle cx="{legend_x + 35}" cy="{legend_y + 88}" r="8" fill="#7c3aed"/>')
+    svg.append(f'<text x="{legend_x + 62}" y="{legend_y + 92}" font-size="13" fill="#475569">halo = compression hub</text>')
 
     svg.append("</svg>")
     return "".join(svg)
@@ -411,18 +411,18 @@ def build_world_map_svg(products: List[int], selected: int, stage: str) -> str:
 
 def anchor_for_angle(angle_deg: float) -> str:
     c = math.cos(math.radians(angle_deg))
-    if c > 0.35:
+    if c > 0.30:
         return "start"
-    if c < -0.35:
+    if c < -0.30:
         return "end"
     return "middle"
 
 
 def text_offset_for_anchor(anchor: str) -> int:
     if anchor == "start":
-        return 6
+        return 7
     if anchor == "end":
-        return -6
+        return -7
     return 0
 
 
@@ -435,7 +435,7 @@ def radial_angles(count: int, start_deg: float, end_deg: float) -> List[float]:
     return [start_deg + i * step for i in range(count)]
 
 
-def arrowhead_polygon(x: float, y: float, angle_deg: float, size: float = 9) -> str:
+def arrowhead_polygon(x: float, y: float, angle_deg: float, size: float = 11) -> str:
     left = math.radians(angle_deg + 145)
     right = math.radians(angle_deg - 145)
     x1 = x + size * math.cos(left)
@@ -447,25 +447,25 @@ def arrowhead_polygon(x: float, y: float, angle_deg: float, size: float = 9) -> 
 
 def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Route], color: str) -> str:
     width = 760
-    height = 560
+    height = 600
     cx = width / 2
-    cy = 275
-    hub_r = 76
+    cy = 305
+    hub_r = 92
 
-    entry_inner = hub_r + 8
-    entry_outer = 198
-    exit_inner = hub_r + 8
-    exit_outer = 205
-    label_push = 24
+    entry_inner = hub_r + 6
+    entry_outer = 172
+    exit_inner = hub_r + 10
+    exit_outer = 182
+    label_push = 16
 
     svg = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" xmlns="http://www.w3.org/2000/svg">',
         '<rect width="100%" height="100%" fill="#020617"/>',
-        '<text x="28" y="34" font-size="18" font-weight="700" fill="#cbd5e1">Radial Hub View</text>',
-        '<text x="28" y="56" font-size="12" fill="#94a3b8">Multiplication routes point inward · Division routes point outward</text>',
+        '<text x="22" y="34" font-size="28" font-weight="800" fill="#e2e8f0">Radial Hub View</text>',
+        '<text x="22" y="64" font-size="16" fill="#cbd5e1">Multiplication routes point inward · Division routes point outward</text>',
     ]
 
-    entry_angles = radial_angles(len(routes_list), -155, -25)
+    entry_angles = radial_angles(len(routes_list), -150, -30)
     for angle_deg, r in zip(entry_angles, routes_list):
         angle = math.radians(angle_deg)
 
@@ -475,10 +475,10 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         iy = cy + entry_inner * math.sin(angle)
 
         svg.append(
-            f'<line x1="{ox:.1f}" y1="{oy:.1f}" x2="{ix:.1f}" y2="{iy:.1f}" stroke="#cbd5e1" stroke-width="3.2" opacity="0.95"/>'
+            f'<line x1="{ox:.1f}" y1="{oy:.1f}" x2="{ix:.1f}" y2="{iy:.1f}" stroke="#e2e8f0" stroke-width="4" opacity="0.95"/>'
         )
         svg.append(
-            f'<polygon points="{arrowhead_polygon(ix, iy, angle_deg)}" fill="#cbd5e1" opacity="0.95"/>'
+            f'<polygon points="{arrowhead_polygon(ix, iy, angle_deg)}" fill="#e2e8f0" opacity="0.95"/>'
         )
 
         tx = cx + (entry_outer + label_push) * math.cos(angle)
@@ -487,10 +487,10 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         dx = text_offset_for_anchor(anchor)
 
         svg.append(
-            f'<text x="{tx + dx:.1f}" y="{ty:.1f}" text-anchor="{anchor}" font-size="15" font-weight="600" fill="#e2e8f0">{r[0]}×{r[1]}</text>'
+            f'<text x="{tx + dx:.1f}" y="{ty:.1f}" text-anchor="{anchor}" font-size="24" font-weight="700" fill="#ffffff">{r[0]}×{r[1]}</text>'
         )
 
-    exit_angles = radial_angles(len(exits_list), 25, 155)
+    exit_angles = radial_angles(len(exits_list), 30, 150)
     for angle_deg, r in zip(exit_angles, exits_list):
         angle = math.radians(angle_deg)
 
@@ -500,7 +500,7 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         oy = cy + exit_outer * math.sin(angle)
 
         svg.append(
-            f'<line x1="{ix:.1f}" y1="{iy:.1f}" x2="{ox:.1f}" y2="{oy:.1f}" stroke="#a78bfa" stroke-width="3.2" opacity="0.95"/>'
+            f'<line x1="{ix:.1f}" y1="{iy:.1f}" x2="{ox:.1f}" y2="{oy:.1f}" stroke="#a78bfa" stroke-width="4" opacity="0.95"/>'
         )
         svg.append(
             f'<polygon points="{arrowhead_polygon(ox, oy, angle_deg)}" fill="#a78bfa" opacity="0.95"/>'
@@ -512,18 +512,19 @@ def build_radial_svg(product: int, routes_list: List[Route], exits_list: List[Ro
         dx = text_offset_for_anchor(anchor)
 
         svg.append(
-            f'<text x="{tx + dx:.1f}" y="{ty + 4:.1f}" text-anchor="{anchor}" font-size="15" font-weight="600" fill="#ddd6fe">{product}÷{r[0]}</text>'
+            f'<text x="{tx + dx:.1f}" y="{ty + 6:.1f}" text-anchor="{anchor}" font-size="24" font-weight="700" fill="#ddd6fe">{product}÷{r[0]}</text>'
         )
 
     if is_compression_hub(product):
-        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{hub_r + 14}" fill="#8b5cf6" opacity="0.18"/>')
+        svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{hub_r + 16}" fill="#8b5cf6" opacity="0.18"/>')
 
-    svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{hub_r}" fill="{color}" stroke="#ffffff" stroke-width="4"/>')
+    svg.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{hub_r}" fill="{color}" stroke="#ffffff" stroke-width="5"/>')
     svg.append(
-        f'<text x="{cx:.1f}" y="{cy + 14:.1f}" text-anchor="middle" font-size="38" fill="white" font-weight="800">{product}</text>'
+        f'<text x="{cx:.1f}" y="{cy + 18:.1f}" text-anchor="middle" font-size="52" fill="white" font-weight="800">{product}</text>'
     )
-    svg.append(f'<text x="{cx:.1f}" y="{cy - hub_r - 18:.1f}" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">Entry routes</text>')
-    svg.append(f'<text x="{cx:.1f}" y="{cy + hub_r + 34:.1f}" text-anchor="middle" font-size="13" font-weight="700" fill="#ddd6fe">Exit routes</text>')
+
+    svg.append(f'<text x="{cx:.1f}" y="{cy - hub_r - 18:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#e2e8f0">Entry routes</text>')
+    svg.append(f'<text x="{cx:.1f}" y="{cy + hub_r + 34:.1f}" text-anchor="middle" font-size="18" font-weight="800" fill="#ddd6fe">Exit routes</text>')
 
     svg.append("</svg>")
     return "".join(svg)
@@ -647,7 +648,7 @@ render_selected_summary(product)
 
 st.subheader("Product World Map")
 world_svg = build_world_map_svg(products, product, stage)
-st.components.v1.html(world_svg, height=920, scrolling=False)
+st.components.v1.html(world_svg, height=1220, scrolling=True)
 
 st.subheader("Select Product")
 cols = st.columns(8)
@@ -706,4 +707,4 @@ with left:
 with right:
     st.subheader("Selected Product Map")
     radial = build_radial_svg(product, routes(product), exits(product), color)
-    st.components.v1.html(radial, height=580, scrolling=False)
+    st.components.v1.html(radial, height=610, scrolling=False)
