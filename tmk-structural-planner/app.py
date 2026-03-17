@@ -597,7 +597,10 @@ with left:
     )
 
     st.write("Introduction route")
-    st.markdown(f'<span class="pill intro">{intro_text(product)}</span>', unsafe_allow_html=True)
+    st.markdown(
+        f'<span class="pill intro">{intro_text(product)}</span>',
+        unsafe_allow_html=True,
+    )
 
     st.write("Full route field")
     route_html = ""
@@ -610,10 +613,25 @@ with left:
     for r in exits(product):
         exit_html += f'<span class="pill exit">{exit_text(product, r)}</span>'
     st.markdown(exit_html, unsafe_allow_html=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 with right:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("Selected Product Map")
-    radial = build_radial_svg(product, routes(product), exits(product), color)
-    st.components.v1.html(radial, height=580, sc
+
+    radial = build_radial_svg(
+        product,
+        routes(product),
+        exits(product),
+        color,
+    )
+
+    st.components.v1.html(
+        radial,
+        height=580,
+        scrolling=False
+    )
+
+    st.markdown("</div>", unsafe_allow_html=True)
