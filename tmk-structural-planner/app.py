@@ -50,6 +50,17 @@ def visible_products(selected_stage: str) -> List[int]:
     return sorted(visible)
 
 
+def visible_stage_groups(selected_stage: str) -> Dict[str, List[int]]:
+    groups: Dict[str, List[int]] = {}
+    visible = set(visible_products(selected_stage))
+    for s in STAGE_ORDER:
+        if stage_rank(s) <= stage_rank(selected_stage):
+            stage_products = [p for p in STAGE_META[s]["products"] if p in visible]
+            if stage_products:
+                groups[s] = stage_products
+    return groups
+
+
 def routes(product: int) -> List[Route]:
     out = []
     for a in range(1, 11):
@@ -346,6 +357,32 @@ st.markdown(
     .intro { background: #ecfeff; font-weight: 700; }
     .entry { background: #eef6ff; }
     .exit { background: #f5f3ff; }
+
+    .selector-stage {
+        margin: 0 0 1rem 0;
+        padding: 0.95rem 1rem 1rem 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    }
+    .selector-stage-header {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
+        font-weight: 800;
+        color: #1f2937;
+        font-size: 1rem;
+    }
+    .selector-stage-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        display: inline-block;
+        flex: 0 0 auto;
+    }
+
     div[data-testid="stButton"] > button {
         width: 100%;
         border-radius: 12px;
@@ -398,13 +435,35 @@ world_svg = build_world_map_svg(products, st.session_state.product, stage)
 st.components.v1.html(world_svg, height=780, scrolling=False)
 
 st.subheader("Select Product")
-cols = st.columns(8)
-for i, p in enumerate(products):
-    with cols[i % 8]:
-        if st.button(str(p), key=f"product_{p}"):
-            st.session_state.product = p
-            write_query_product(p)
-            write_query_stage(stage)
+st.caption("Products are grouped by stage of introduction.")
+
+stage_groups = visible_stage_groups(stage)
+for stage_key in STAGE_ORDER:
+    if stage_key not in stage_groups:
+        continue
+
+    meta = STAGE_META[stage_key]
+    stage_products = stage_groups[stage_key]
+
+    st.markdown(
+        f"""
+        <div class="selector-stage">
+            <div class="selector-stage-header">
+                <span class="selector-stage-dot" style="background:{meta['color']};"></span>
+                <span>{meta['label']}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(8)
+    for i, p in enumerate(stage_products):
+        with cols[i % 8]:
+            if st.button(str(p), key=f"product_{stage_key}_{p}"):
+                st.session_state.product = p
+                write_query_product(p)
+                write_query_stage(stage)
 
 product = st.session_state.product
 color = STAGE_META[PRODUCT_STAGE[product]]["color"]
