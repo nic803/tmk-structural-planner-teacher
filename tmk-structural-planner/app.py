@@ -1,7 +1,11 @@
+import streamlit as st
+
+st.write("TMK boot test")
+st.stop()
+
 import math
 from typing import Dict, List, Set, Tuple
 
-import streamlit as st
 import streamlit.components.v2 as components
 
 st.set_page_config(page_title="TMK Structural Planner", page_icon="✳️", layout="wide")
